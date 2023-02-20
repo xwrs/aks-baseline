@@ -41,7 +41,7 @@ The following two resource groups will be created and populated with networking 
 
    ```bash
    # [This takes less than one minute to run.]
-   az group create -n rg-enterprise-networking-hubs -l centralus
+   az group create -n rg-enterprise-networking-hubs -l westeurope
    ```
 
 1. Create the networking spokes resource group.
@@ -50,25 +50,25 @@ The following two resource groups will be created and populated with networking 
 
    ```bash
    # [This takes less than one minute to run.]
-   az group create -n rg-enterprise-networking-spokes -l centralus
+   az group create -n rg-enterprise-networking-spokes -l westeurope
    ```
 
 1. Create the regional network hub.
 
-   > :book: When the networking team created the regional hub for eastus2, it didn't have any spokes yet defined, yet the networking team always lays out a base hub following a standard pattern (defined in `hub-default.bicep`). A hub always contains an Azure Firewall (with some org-wide policies), Azure Bastion, a gateway subnet for VPN connectivity, and Azure Monitor for network observability. They follow Microsoft's recommended sizing for the subnets.
+   > :book: When the networking team created the regional hub for westeurope, it didn't have any spokes yet defined, yet the networking team always lays out a base hub following a standard pattern (defined in `hub-default.bicep`). A hub always contains an Azure Firewall (with some org-wide policies), Azure Bastion, a gateway subnet for VPN connectivity, and Azure Monitor for network observability. They follow Microsoft's recommended sizing for the subnets.
    >
-   > The networking team has decided that `10.200.[0-9].0` will be where all regional hubs are homed on their organization's network space. The `eastus2` hub (created below) will be `10.200.0.0/24`.
+   > The networking team has decided that `10.200.[0-9].0` will be where all regional hubs are homed on their organization's network space. The `westeurope` hub (created below) will be `10.200.0.0/24`.
    >
    > Note: The subnets for Azure Bastion and on-prem connectivity are deployed in this reference architecture, but the resources are not deployed. Since this reference implementation is expected to be deployed isolated from existing infrastructure; these IP addresses should not conflict with any existing networking you have, even if those IP addresses overlap. If you need to connect the reference implementation to existing networks, you will need to adjust the IP space as per your requirements as to not conflict in the reference ARM templates.
 
    ```bash
    # [This takes about six minutes to run.]
-   az deployment group create -g rg-enterprise-networking-hubs -f networking/hub-default.bicep -p location=eastus2
+   az deployment group create -g rg-enterprise-networking-hubs -f networking/hub-default.bicep -p location=westeurope
    ```
 
    The hub creation will emit the following:
 
-      * `hubVnetId` - which you'll will query in future steps when creating connected regional spokes. E.g. `/subscriptions/[id]/resourceGroups/rg-enterprise-networking-hubs/providers/Microsoft.Network/virtualNetworks/vnet-eastus2-hub`
+      * `hubVnetId` - which you'll will query in future steps when creating connected regional spokes. E.g. `/subscriptions/[id]/resourceGroups/rg-enterprise-networking-hubs/providers/Microsoft.Network/virtualNetworks/vnet-westeurope-hub`
 
 1. Create the spoke that will be home to the AKS cluster and its adjacent resources.
 
@@ -79,7 +79,7 @@ The following two resource groups will be created and populated with networking 
    echo RESOURCEID_VNET_HUB: $RESOURCEID_VNET_HUB
 
    # [This takes about four minutes to run.]
-   az deployment group create -g rg-enterprise-networking-spokes -f networking/spoke-BU0001A0008.bicep -p location=eastus2 hubVnetResourceId="${RESOURCEID_VNET_HUB}"
+   az deployment group create -g rg-enterprise-networking-spokes -f networking/spoke-BU0001A0008.bicep -p location=westeurope hubVnetResourceId="${RESOURCEID_VNET_HUB}"
    ```
 
    The spoke creation will emit the following:
@@ -90,14 +90,14 @@ The following two resource groups will be created and populated with networking 
 
 1. Update the shared, regional hub deployment to account for the requirements of the spoke.
 
-   > :book: Now that their regional hub has its first spoke, the hub can no longer run off of the generic hub template. The networking team creates a named hub template (e.g. `hub-eastus2.bicep`) to forever represent this specific hub and the features this specific hub needs in order to support its spokes' requirements. As new spokes are attached and new requirements arise for the regional hub, they will be added to this template file.
+   > :book: Now that their regional hub has its first spoke, the hub can no longer run off of the generic hub template. The networking team creates a named hub template (e.g. `hub-westeurope.bicep`) to forever represent this specific hub and the features this specific hub needs in order to support its spokes' requirements. As new spokes are attached and new requirements arise for the regional hub, they will be added to this template file.
 
    ```bash
    RESOURCEID_SUBNET_NODEPOOLS=$(az deployment group show -g rg-enterprise-networking-spokes -n spoke-BU0001A0008 --query properties.outputs.nodepoolSubnetResourceIds.value -o json)
    echo RESOURCEID_SUBNET_NODEPOOLS: $RESOURCEID_SUBNET_NODEPOOLS
 
    # [This takes about ten minutes to run.]
-   az deployment group create -g rg-enterprise-networking-hubs -f networking/hub-regionA.bicep -p location=eastus2 nodepoolSubnetResourceIds="${RESOURCEID_SUBNET_NODEPOOLS}"
+   az deployment group create -g rg-enterprise-networking-hubs -f networking/hub-regionA.bicep -p location=westeurope nodepoolSubnetResourceIds="${RESOURCEID_SUBNET_NODEPOOLS}"
    ```
 
    > :book: At this point the networking team has delivered a spoke in which BU 0001's app team can lay down their AKS cluster (ID: A0008). The networking team provides the necessary information to the app team for them to reference in their infrastructure-as-code artifacts.
